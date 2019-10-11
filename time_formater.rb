@@ -1,6 +1,8 @@
 class TimeFormater
 
-  require_relative 'pathfinder'
+  PATHS = {
+    "GET /time" => "do_format"
+  }
 
   FORMATS =  {
     "year" => "%Y-",
@@ -11,34 +13,28 @@ class TimeFormater
     "secend" => "%S"
   } 
 
+  attr_reader :extras
+
   def initialize(env)
     @env = Rack::Request.new(env)
-    @knuckles = Pathfinder.new
   end
 
   def valid?
-    @knuckles.do_u_know_de_way?(@env)
+    TimeFormater::PATHS.include?("#{@env.request_method} #{@env.path}")
   end
 
-  def working   
-    send(@knuckles.we_must_find_de_way(@env), @env)
+  def form_params
+    @params = @env.params["format"].split(',')
   end
 
-  def do_format(env)
-    @params = env.params["format"].split(',')
-    extras = @params.select { |i| !TimeFormater::FORMATS.include?(i) }
-    return error_unknown_params(extras) unless extras.empty?
-    time_params = TimeFormater::FORMATS.select { |i| @params.include?(i) }
+  def find_extras
+    form_params
+    @extras = @params.select { |i| !TimeFormater::FORMATS.include?(i) }
+  end
+
+  def do_format
     str = ""
-    time_params.each_value { |i| str += i }
-    [ 200, { 'Content-Type' => 'text/plain' }, ["#{Time.now.strftime(str)}\n"] ]
-  end
-
-  def error_unknown_params(extras)
-    [ 400, { 'Content-Type' => 'text/plain' }, [ "Unknown time format #{extras}\n" ] ]
-  end
-
-  def on_strike
-    [ 404, { 'Content-Type' => 'text/plain' }, ["Page not found!\n"] ]
+    TimeFormater::FORMATS.select { |i| @params.include?(i) }.each_value { |i| str += i }
+    Time.now.strftime(str)
   end
 end
